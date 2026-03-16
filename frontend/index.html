@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tradutor de Libras</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+    h1{font-size:1.8rem;font-weight:700;margin-bottom:4px;background:linear-gradient(90deg,#7c3aed,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .subtitle{font-size:.9rem;color:#64748b;margin-bottom:24px}
+    .grid{display:grid;grid-template-columns:1fr 340px;gap:20px;width:100%;max-width:1100px}
+    .cam-card{background:#1e2130;border-radius:16px;overflow:hidden;position:relative;aspect-ratio:4/3;border:2px solid #2d3148}
+    #video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+    .overlay{position:absolute;inset:0;pointer-events:none}
+    .hand-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:220px;height:260px;border:2px dashed #7c3aed44;border-radius:12px;transition:border-color .3s}
+    .hand-frame.active{border-color:#7c3aedcc}
+    .badge{position:absolute;top:12px;left:12px;padding:4px 12px;border-radius:99px;font-size:.78rem;font-weight:600;background:#1e2130cc;border:1px solid #2d3148;backdrop-filter:blur(4px)}
+    .badge.connected{border-color:#22c55e55;color:#22c55e}
+    .badge.disconnected{border-color:#ef444455;color:#ef4444}
+    .badge.detecting{border-color:#f59e0b55;color:#f59e0b}
+    .side{display:flex;flex-direction:column;gap:16px}
+    .card{background:#1e2130;border-radius:16px;padding:20px;border:1px solid #2d3148}
+    .card-title{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+
+    /* Letra detectada */
+    .letter-display{text-align:center;padding:8px 0}
+    .letter-big{font-size:6rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#7c3aed,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;min-height:96px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .letter-sub{font-size:.9rem;color:#64748b;margin-top:6px}
+    .conf-pill{display:inline-block;margin-top:8px;padding:4px 16px;border-radius:99px;font-size:.85rem;font-weight:600;background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44}
+
+    /* Palavra formada */
+    .word-display{font-size:1.6rem;font-weight:700;letter-spacing:.12em;color:#e2e8f0;min-height:40px;text-align:center;padding:8px 4px;border-bottom:2px solid #2d3148;margin-bottom:12px;word-break:break-all}
+    .word-hint{font-size:.75rem;color:#475569;text-align:center}
+
+    /* Top 5 */
+    .t5-item{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .t5-item:last-child{margin-bottom:0}
+    .t5-label{width:24px;font-size:.9rem;font-weight:700;color:#cbd5e1;text-align:center}
+    .t5-bar-wrap{flex:1;height:8px;background:#2d3148;border-radius:99px;overflow:hidden}
+    .t5-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#7c3aed,#2563eb);transition:width .2s ease}
+    .t5-pct{width:44px;text-align:right;font-size:.78rem;color:#64748b}
+
+    /* Botões de palavra */
+    .word-btns{display:flex;gap:8px;margin-top:10px}
+    .word-btn{flex:1;padding:8px;border-radius:8px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;transition:opacity .2s}
+    #btnBackspace{background:#3b1d1d;color:#f87171}
+    #btnSpace{background:#1d2d3b;color:#60a5fa}
+    #btnClearWord{background:#2d3148;color:#94a3b8}
+
+    /* Controles */
+    .btn-row{display:flex;gap:10px}
+    button{flex:1;padding:10px;border-radius:10px;border:none;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s}
+    button:active{transform:scale(.97)}
+    #btnStart{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff}
+    #btnStop{background:#2d3148;color:#94a3b8}
+    button:disabled{opacity:.4;cursor:not-allowed}
+    .log{font-size:.75rem;color:#475569;margin-top:8px;min-height:18px}
+
+    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+<h1>🤟 Tradutor de Libras</h1>
+<p class="subtitle">Alfabeto manual (datilologia) em tempo real — letras A–Y</p>
+
+<div class="grid">
+
+  <!-- CÂMERA -->
+  <div class="cam-card">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="overlay">
+      <div class="hand-frame" id="handFrame"></div>
+      <div class="badge disconnected" id="badge">⬤ Desconectado</div>
+    </div>
+  </div>
+
+  <!-- PAINEL -->
+  <div class="side">
+
+    <!-- Letra atual -->
+    <div class="card">
+      <div class="card-title">Letra detectada</div>
+      <div class="letter-display">
+        <div class="letter-big" id="letterBig">—</div>
+        <div class="letter-sub" id="letterSub">Aguardando mão...</div>
+        <div class="conf-pill" id="confPill" style="visibility:hidden">0%</div>
+      </div>
+    </div>
+
+    <!-- Palavra formada -->
+    <div class="card">
+      <div class="card-title">
+        Palavra formada
+      </div>
+      <div class="word-display" id="wordDisplay">_</div>
+      <div class="word-hint">Mantenha a letra estável por ~1s para adicioná-la</div>
+      <div class="word-btns">
+        <button class="word-btn" id="btnBackspace" onclick="backspace()">⌫ Apagar</button>
+        <button class="word-btn" id="btnSpace"     onclick="addSpace()">␣ Espaço</button>
+        <button class="word-btn" id="btnClearWord" onclick="clearWord()">🗑 Limpar</button>
+      </div>
+    </div>
+
+    <!-- Top 5 probabilidades -->
+    <div class="card">
+      <div class="card-title">Top 5 probabilidades</div>
+      <div id="top5"><span style="color:#475569;font-size:.82rem">Nenhuma previsão ainda</span></div>
+    </div>
+
+    <!-- Controles -->
+    <div class="card">
+      <div class="btn-row">
+        <button id="btnStart" onclick="startCam()">▶ Iniciar câmera</button>
+        <button id="btnStop"  onclick="stopCam()" disabled>⏹ Parar</button>
+      </div>
+      <div class="log" id="log">Clique em "Iniciar câmera" para começar.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const WS_URL = "ws://localhost:8000/ws";
+  const FPS    = 60; // ms entre frames (~16fps)
+
+  // Estabilização: adiciona letra à palavra quando
+  // a mesma letra aparece por STABLE_FRAMES frames seguidos
+  const STABLE_FRAMES   = 20;
+  const COOLDOWN_FRAMES = 30; // frames de cooldown após adicionar
+
+  let ws, stream, timer;
+  let word           = "";
+  let stableCount    = 0;
+  let lastLetter     = "";
+  let cooldown       = 0;
+
+  const video = document.getElementById("video");
+  const badge = document.getElementById("badge");
+  const handFrame = document.getElementById("handFrame");
+  const letterBig = document.getElementById("letterBig");
+  const letterSub = document.getElementById("letterSub");
+  const confPill = document.getElementById("confPill");
+  const wordDisplay = document.getElementById("wordDisplay");
+  const top5 = document.getElementById("top5");
+  const btnStart = document.getElementById("btnStart");
+  const btnStop = document.getElementById("btnStop");
+  const log = document.getElementById("log");
+
+  const canvas = document.createElement("canvas");
+  const ctx    = canvas.getContext("2d");
+
+  // ── Câmera e WebSocket ───────────────
+  async function startCam() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      video.srcObject = stream;
+      btnStart.disabled = true; btnStop.disabled = false;
+      setLog("Câmera iniciada. Conectando...");
+      connectWS();
+    } catch(e) { setLog("❌ Erro na câmera: " + e.message); }
+  }
+
+  function stopCam() {
+    stream?.getTracks().forEach(t=>t.stop()); stream=null;
+    ws?.close(); ws=null;
+    clearInterval(timer); timer=null;
+    video.srcObject=null;
+    btnStart.disabled=false; btnStop.disabled=true;
+    setBadge("disconnected","⬤ Desconectado");
+    setLog("Câmera parada.");
+  }
+
+  function connectWS() {
+    ws = new WebSocket(WS_URL);
+    ws.onopen    = () => { setBadge("connected","⬤ Conectado"); setLog("Posicione sua mão e faça uma letra do alfabeto manual."); startFrames(); };
+    ws.onmessage = e => handle(JSON.parse(e.data));
+    ws.onerror   = () => setLog("❌ Servidor offline. Rode: python backend/main.py");
+    ws.onclose   = () => { setBadge("disconnected","⬤ Desconectado"); clearInterval(timer); };
+  }
+
+  function startFrames() {
+    timer = setInterval(() => {
+      if (!ws || ws.readyState !== 1 || !stream) return;
+      canvas.width  = video.videoWidth  || 640;
+      canvas.height = video.videoHeight || 480;
+      ctx.save(); ctx.scale(-1,1);
+      ctx.drawImage(video,-canvas.width,0,canvas.width,canvas.height);
+      ctx.restore();
+      ws.send(JSON.stringify({type:"frame", image:canvas.toDataURL("image/jpeg",0.75)}));
+    }, FPS);
+  }
+
+  // ── Processar mensagens ──────────────
+  function handle(msg) {
+    if (msg.type === "status") {
+      handFrame.classList.remove("active");
+      setBadge("connected","⬤ Conectado");
+      letterBig.textContent  = "—";
+      letterSub.textContent  = "Nenhuma mão detectada";
+      confPill.style.visibility = "hidden";
+      stableCount = 0; lastLetter = "";
+      setLog("Posicione sua mão na câmera.");
+      return;
+    }
+
+    if (msg.type === "prediction") {
+      handFrame.classList.add("active");
+      setBadge("detecting", `⬤ Detectando`);
+
+      const letter = msg.letter;
+      const conf   = msg.confidence;
+
+      // Atualiza display
+      letterBig.textContent = letter;
+      letterSub.textContent = `Letra detectada`;
+      confPill.style.visibility = "visible";
+      confPill.textContent  = `${conf}% confiança`;
+
+      // Top 5
+      if (msg.top5) {
+        top5.innerHTML = msg.top5.map(i=>`
+          <div class="t5-item">
+            <span class="t5-label">${i.letter}</span>
+            <div class="t5-bar-wrap"><div class="t5-bar-fill" style="width:${i.confidence}%"></div></div>
+            <span class="t5-pct">${i.confidence}%</span>
+          </div>`).join("");
+      }
+
+      // Lógica de estabilização para formar palavras
+      if (cooldown > 0) { cooldown--; return; }
+
+      if (letter === lastLetter && conf >= 60) {
+        stableCount++;
+        const pct = Math.min(stableCount / STABLE_FRAMES * 100, 100);
+        letterSub.textContent = `Segurando... ${Math.round(pct)}%`;
+        if (stableCount >= STABLE_FRAMES) {
+          addLetter(letter);
+          stableCount = 0;
+          cooldown    = COOLDOWN_FRAMES;
+        }
+      } else {
+        lastLetter  = letter;
+        stableCount = 1;
+      }
+
+      setLog(`Detectado: ${letter} (${conf}%)`);
+    }
+
+    if (msg.type === "error") setLog("❌ " + msg.message);
+  }
+
+  // ── Palavra ──────────────────────────
+  function addLetter(l) {
+    word += l;
+    renderWord();
+    setLog(`✅ Letra "${l}" adicionada!`);
+  }
+
+  function addSpace()  { word += " "; renderWord(); }
+  function backspace() { word = word.slice(0,-1); renderWord(); }
+  function clearWord() { word = ""; renderWord(); }
+
+  function renderWord() {
+    wordDisplay.textContent = word || "_";
+  }
+
+  // ── Helpers ──────────────────────────
+  function setBadge(type, text){ badge.className=`badge ${type}`; badge.textContent=text; }
+  function setLog(text){ log.textContent=text; }
+</script>
+</body>
+</html>
