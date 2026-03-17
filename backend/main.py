@@ -190,11 +190,12 @@ async def ws_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
     print("\n🚀 http://localhost:8000\n")
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8000,
+        port=port,
         loop="asyncio",
-        ws_ping_interval=None,  # desativa ping para reduzir latência
+        ws_ping_interval=None,
         ws_ping_timeout=None,
     )

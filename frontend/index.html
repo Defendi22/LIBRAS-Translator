@@ -117,7 +117,9 @@
 </div>
 
 <script>
-  const WS_URL = "ws://localhost:8000/ws";
+  const WS_URL = location.hostname === "localhost"
+    ? "ws://localhost:8000/ws"
+    : `wss://${location.host}/ws`;
   const FPS    = 33;  // ~30fps
 
   // ── Estabilização ──
