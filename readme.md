@@ -102,9 +102,3 @@ Após configurar os secrets, qualquer push na branch `main` irá:
 
 ---
 
-## 📝 Notas
-
-- O plano **free** do Render hiberna após 15min de inatividade
-- Para produção, use o plano **Starter** ($7/mês)
-- O modelo `.pkl` deve estar no repositório ou no disco persistente do Render
-- A webcam roda no **navegador do usuário** — não no servidor
