@@ -1,11 +1,12 @@
 """
 =============================================================
-  Libras Translator — Backend v2
-  Modelo: Random Forest + MediaPipe Landmarks
+  Libras Translator — Backend OTIMIZADO
+  - Inferência direta sem sleep
+  - Buffer de frames para estabilização rápida
+  - Landmarks normalizados igual ao collect_data.py
 =============================================================
   Para rodar:
     python backend/main.py
-  Acesse: http://localhost:8000
 =============================================================
 """
 
@@ -13,6 +14,7 @@ import os, sys, json, base64, asyncio
 import numpy as np
 import cv2
 import joblib
+from collections import Counter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -23,23 +25,24 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-# ── Carregar modelo Random Forest ────────
-print("Carregando modelo ASL...")
+# ── Carregar modelo ───────────────────────
+print("Carregando modelo...")
 clf = joblib.load(os.path.join(ROOT, "model", "asl_classifier.pkl"))
 le  = joblib.load(os.path.join(ROOT, "model", "asl_label_encoder.pkl"))
-print(f"✅ Pronto — {len(le.classes_)} letras: {list(le.classes_)}")
+print(f"✅ {len(le.classes_)} letras prontas: {list(le.classes_)}")
 
-# ── MediaPipe ────────────────────────────
+# ── MediaPipe com configurações otimizadas ─
 mp_hands = mp.solutions.hands
 hands_detector = mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=1,
-    min_detection_confidence=0.6,
-    min_tracking_confidence=0.5,
+    model_complexity=1,           # 0=rápido, 1=preciso
+    min_detection_confidence=0.7,
+    min_tracking_confidence=0.6,
 )
 
-# ── App ──────────────────────────────────
-app = FastAPI(title="Libras Translator v2")
+# ── App ───────────────────────────────────
+app = FastAPI(title="Libras Translator")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 FRONTEND = os.path.join(ROOT, "frontend")
@@ -55,87 +58,102 @@ async def root():
 async def health():
     return {"status": "ok", "letters": list(le.classes_)}
 
-# ── Extração de landmarks ─────────────────
-def extract_landmarks(hand_landmarks):
-    """Extrai 63 features normalizadas pelo pulso."""
+# ── Extração IDÊNTICA ao collect_data.py ──
+def extrair_landmarks(hand_landmarks):
     lms = [(lm.x, lm.y, lm.z) for lm in hand_landmarks.landmark]
-    wrist_x, wrist_y, wrist_z = lms[0]
+    wx, wy, wz = lms[0]
     features = []
     for (x, y, z) in lms:
-        features += [x - wrist_x, y - wrist_y, z - wrist_z]
-    return np.array(features).reshape(1, -1)
+        features += [round(x-wx, 6), round(y-wy, 6), round(z-wz, 6)]
+    return features
 
-# ── Suavizador de predições ───────────────
-class PredictionSmoother:
+# ── Buffer de estabilização ───────────────
+class Buffer:
     """
-    Acumula N predições consecutivas e retorna
-    a letra mais votada — evita flickering.
+    Mantém as últimas N predições.
+    Retorna a letra mais votada se tiver maioria clara.
     """
-    def __init__(self, window=7):
-        self.window  = window
-        self.history = []
+    def __init__(self, n=5):
+        self.n       = n
+        self.letras  = []
+        self.confias = []
 
-    def add(self, letter, proba):
-        self.history.append((letter, proba))
-        if len(self.history) > self.window:
-            self.history.pop(0)
+    def add(self, letra, conf):
+        self.letras.append(letra)
+        self.confias.append(conf)
+        if len(self.letras) > self.n:
+            self.letras.pop(0)
+            self.confias.pop(0)
 
-    def get_stable(self):
-        if not self.history:
+    def get(self):
+        if len(self.letras) < 2:
             return None, 0.0
-        # Vota na letra mais frequente
-        from collections import Counter
-        votes  = Counter(h[0] for h in self.history)
-        winner = votes.most_common(1)[0][0]
-        # Confiança média das ocorrências do vencedor
-        conf   = np.mean([h[1] for h in self.history if h[0] == winner])
-        return winner, round(float(conf) * 100, 1)
+        votos    = Counter(self.letras)
+        vencedor, count = votos.most_common(1)[0]
+        # Exige maioria simples (>50%)
+        if count / len(self.letras) < 0.5:
+            return None, 0.0
+        conf_media = np.mean([c for l, c in zip(self.letras, self.confias) if l == vencedor])
+        return vencedor, round(float(conf_media) * 100, 1)
 
-# ── WebSocket ────────────────────────────
+    def clear(self):
+        self.letras.clear()
+        self.confias.clear()
+
+# ── WebSocket ─────────────────────────────
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket):
     await websocket.accept()
-    smoother = PredictionSmoother(window=7)
+    buf = Buffer(n=5)
     print("🔌 Cliente conectado")
 
     try:
         while True:
-            msg = json.loads(await websocket.receive_text())
+            data = await websocket.receive_text()
+            msg  = json.loads(data)
+
             if msg.get("type") != "frame":
                 continue
 
             # Decodifica frame
-            img = cv2.imdecode(
-                np.frombuffer(base64.b64decode(msg["image"].split(",")[-1]), np.uint8),
-                cv2.IMREAD_COLOR
-            )
+            raw = base64.b64decode(msg["image"].split(",")[-1])
+            img = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
             if img is None:
                 continue
 
+            # Reduz resolução para acelerar MediaPipe
+            h, w = img.shape[:2]
+            if w > 480:
+                scale = 480 / w
+                img   = cv2.resize(img, (480, int(h * scale)))
+
             # Detecta mão
-            results = hands_detector.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            rgb     = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            results = hands_detector.process(rgb)
 
             if not results.multi_hand_landmarks:
-                smoother.history.clear()
+                buf.clear()
                 await websocket.send_text(json.dumps({
                     "type": "status",
                     "hand_detected": False,
-                    "message": "Nenhuma mão detectada"
                 }))
                 continue
 
-            # Extrai landmarks e classifica
-            features = extract_landmarks(results.multi_hand_landmarks[0])
-            proba    = clf.predict_proba(features)[0]
-            idx      = int(np.argmax(proba))
-            letter   = le.inverse_transform([idx])[0]
-            conf     = float(proba[idx])
+            # Extrai features — idêntico ao collect_data.py
+            features = extrair_landmarks(results.multi_hand_landmarks[0])
+            X        = np.array(features, dtype=np.float32).reshape(1, -1)
 
-            # Suaviza predição
-            smoother.add(letter, conf)
-            stable_letter, stable_conf = smoother.get_stable()
+            # Classifica
+            proba  = clf.predict_proba(X)[0]
+            idx    = int(np.argmax(proba))
+            letra  = le.inverse_transform([idx])[0]
+            conf   = float(proba[idx])
 
-            # Top 5 letras mais prováveis
+            # Adiciona ao buffer
+            buf.add(letra, conf)
+            letra_stable, conf_stable = buf.get()
+
+            # Top 5
             top5_idx = np.argsort(proba)[::-1][:5]
             top5 = [
                 {"letter": le.inverse_transform([i])[0],
@@ -143,17 +161,24 @@ async def ws_endpoint(websocket: WebSocket):
                 for i in top5_idx
             ]
 
-            await websocket.send_text(json.dumps({
-                "type":         "prediction",
-                "hand_detected": True,
-                "letter":        stable_letter,
-                "confidence":    stable_conf,
-                "raw_letter":    letter,
-                "raw_confidence": round(conf * 100, 1),
-                "top5":          top5,
-            }))
-
-            await asyncio.sleep(0.03)  # ~30fps
+            if letra_stable and conf_stable >= 65:
+                await websocket.send_text(json.dumps({
+                    "type":          "prediction",
+                    "hand_detected":  True,
+                    "letter":         letra_stable,
+                    "confidence":     conf_stable,
+                    "raw_letter":     letra,
+                    "top5":           top5,
+                }))
+            else:
+                # Envia mesmo assim para mostrar o top5 em tempo real
+                await websocket.send_text(json.dumps({
+                    "type":          "detecting",
+                    "hand_detected":  True,
+                    "letter":         letra,
+                    "confidence":     round(conf * 100, 1),
+                    "top5":           top5,
+                }))
 
     except WebSocketDisconnect:
         print("🔌 Desconectado")
@@ -165,4 +190,11 @@ async def ws_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
     print("\n🚀 http://localhost:8000\n")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        loop="asyncio",
+        ws_ping_interval=None,  # desativa ping para reduzir latência
+        ws_ping_timeout=None,
+    )

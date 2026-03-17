@@ -6,64 +6,69 @@
   <title>Tradutor de Libras</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
-    h1{font-size:1.8rem;font-weight:700;margin-bottom:4px;background:linear-gradient(90deg,#7c3aed,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .subtitle{font-size:.9rem;color:#64748b;margin-bottom:24px}
-    .grid{display:grid;grid-template-columns:1fr 340px;gap:20px;width:100%;max-width:1100px}
+    body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px}
+    h1{font-size:1.8rem;font-weight:700;margin-bottom:2px;background:linear-gradient(90deg,#7c3aed,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .subtitle{font-size:.85rem;color:#64748b;margin-bottom:20px}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:16px;width:100%;max-width:1050px}
+
+    /* Câmera */
     .cam-card{background:#1e2130;border-radius:16px;overflow:hidden;position:relative;aspect-ratio:4/3;border:2px solid #2d3148}
     #video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
     .overlay{position:absolute;inset:0;pointer-events:none}
-    .hand-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:220px;height:260px;border:2px dashed #7c3aed44;border-radius:12px;transition:border-color .3s}
-    .hand-frame.active{border-color:#7c3aedcc}
-    .badge{position:absolute;top:12px;left:12px;padding:4px 12px;border-radius:99px;font-size:.78rem;font-weight:600;background:#1e2130cc;border:1px solid #2d3148;backdrop-filter:blur(4px)}
-    .badge.connected{border-color:#22c55e55;color:#22c55e}
-    .badge.disconnected{border-color:#ef444455;color:#ef4444}
-    .badge.detecting{border-color:#f59e0b55;color:#f59e0b}
-    .side{display:flex;flex-direction:column;gap:16px}
-    .card{background:#1e2130;border-radius:16px;padding:20px;border:1px solid #2d3148}
-    .card-title{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+    .hand-box{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:220px;height:260px;border:2px dashed #7c3aed44;border-radius:12px;transition:border-color .15s}
+    .hand-box.active{border-color:#7c3aedaa}
+    .badge{position:absolute;top:10px;left:10px;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:600;background:#0f1117bb;border:1px solid #2d3148;backdrop-filter:blur(4px)}
+    .badge.on{border-color:#22c55e55;color:#22c55e}
+    .badge.off{border-color:#ef444455;color:#ef4444}
+    .badge.det{border-color:#f59e0b55;color:#f59e0b}
 
-    /* Letra detectada */
-    .letter-display{text-align:center;padding:8px 0}
-    .letter-big{font-size:6rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#7c3aed,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;min-height:96px;display:flex;align-items:center;justify-content:center;transition:all .15s}
-    .letter-sub{font-size:.9rem;color:#64748b;margin-top:6px}
-    .conf-pill{display:inline-block;margin-top:8px;padding:4px 16px;border-radius:99px;font-size:.85rem;font-weight:600;background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44}
+    /* Letra ao vivo — overlay grande na câmera */
+    .live-letter{position:absolute;bottom:12px;right:12px;font-size:5rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#7c3aed,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 2px 8px #0008)}
 
-    /* Palavra formada */
-    .word-display{font-size:1.6rem;font-weight:700;letter-spacing:.12em;color:#e2e8f0;min-height:40px;text-align:center;padding:8px 4px;border-bottom:2px solid #2d3148;margin-bottom:12px;word-break:break-all}
-    .word-hint{font-size:.75rem;color:#475569;text-align:center}
+    /* Painel */
+    .side{display:flex;flex-direction:column;gap:12px}
+    .card{background:#1e2130;border-radius:14px;padding:16px;border:1px solid #2d3148}
+    .card-title{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+
+    /* Frase */
+    .frase{font-size:1.5rem;font-weight:700;letter-spacing:.1em;color:#e2e8f0;min-height:44px;word-break:break-all;padding:6px 4px;border-bottom:2px solid #2d3148;margin-bottom:8px;text-align:center}
+    .frase-hint{font-size:.72rem;color:#475569;text-align:center;margin-bottom:10px}
+
+    /* Barra de progresso de estabilização */
+    .stab-wrap{height:4px;background:#2d3148;border-radius:99px;overflow:hidden;margin-bottom:8px}
+    .stab-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#22c55e);border-radius:99px;width:0%;transition:width .08s linear}
+
+    /* Botões palavra */
+    .word-btns{display:flex;gap:6px}
+    .wbtn{flex:1;padding:7px;border-radius:8px;border:none;font-size:.8rem;font-weight:600;cursor:pointer}
+    .wbtn.del{background:#3b1d1d;color:#f87171}
+    .wbtn.spc{background:#1d2d3b;color:#60a5fa}
+    .wbtn.clr{background:#2d3148;color:#94a3b8}
 
     /* Top 5 */
-    .t5-item{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-    .t5-item:last-child{margin-bottom:0}
-    .t5-label{width:24px;font-size:.9rem;font-weight:700;color:#cbd5e1;text-align:center}
-    .t5-bar-wrap{flex:1;height:8px;background:#2d3148;border-radius:99px;overflow:hidden}
-    .t5-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#7c3aed,#2563eb);transition:width .2s ease}
-    .t5-pct{width:44px;text-align:right;font-size:.78rem;color:#64748b}
-
-    /* Botões de palavra */
-    .word-btns{display:flex;gap:8px;margin-top:10px}
-    .word-btn{flex:1;padding:8px;border-radius:8px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;transition:opacity .2s}
-    #btnBackspace{background:#3b1d1d;color:#f87171}
-    #btnSpace{background:#1d2d3b;color:#60a5fa}
-    #btnClearWord{background:#2d3148;color:#94a3b8}
+    .t5{display:flex;flex-direction:column;gap:7px}
+    .t5-row{display:flex;align-items:center;gap:8px}
+    .t5-l{width:22px;font-size:.9rem;font-weight:700;color:#e2e8f0;text-align:center}
+    .t5-bar{flex:1;height:7px;background:#2d3148;border-radius:99px;overflow:hidden}
+    .t5-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#7c3aed,#2563eb);transition:width .1s ease}
+    .t5-pct{width:38px;text-align:right;font-size:.75rem;color:#64748b}
 
     /* Controles */
-    .btn-row{display:flex;gap:10px}
-    button{flex:1;padding:10px;border-radius:10px;border:none;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s}
-    button:active{transform:scale(.97)}
-    #btnStart{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff}
-    #btnStop{background:#2d3148;color:#94a3b8}
-    button:disabled{opacity:.4;cursor:not-allowed}
-    .log{font-size:.75rem;color:#475569;margin-top:8px;min-height:18px}
+    .btn-row{display:flex;gap:8px}
+    .btn{flex:1;padding:9px;border-radius:10px;border:none;font-size:.85rem;font-weight:600;cursor:pointer;transition:transform .1s}
+    .btn:active{transform:scale(.97)}
+    .btn.start{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff}
+    .btn.stop{background:#2d3148;color:#94a3b8}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .log{font-size:.72rem;color:#475569;margin-top:6px;min-height:16px}
 
-    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}.live-letter{font-size:3.5rem}}
   </style>
 </head>
 <body>
 
 <h1>🤟 Tradutor de Libras</h1>
-<p class="subtitle">Alfabeto manual (datilologia) em tempo real — letras A–Y</p>
+<p class="subtitle">Datilologia em tempo real — letras A–Y</p>
 
 <div class="grid">
 
@@ -71,51 +76,41 @@
   <div class="cam-card">
     <video id="video" autoplay playsinline muted></video>
     <div class="overlay">
-      <div class="hand-frame" id="handFrame"></div>
-      <div class="badge disconnected" id="badge">⬤ Desconectado</div>
+      <div class="hand-box" id="handBox"></div>
+      <div class="badge off" id="badge">⬤ Desconectado</div>
+      <div class="live-letter" id="liveLetter"></div>
     </div>
   </div>
 
   <!-- PAINEL -->
   <div class="side">
 
-    <!-- Letra atual -->
+    <!-- Frase formada -->
     <div class="card">
-      <div class="card-title">Letra detectada</div>
-      <div class="letter-display">
-        <div class="letter-big" id="letterBig">—</div>
-        <div class="letter-sub" id="letterSub">Aguardando mão...</div>
-        <div class="conf-pill" id="confPill" style="visibility:hidden">0%</div>
-      </div>
-    </div>
-
-    <!-- Palavra formada -->
-    <div class="card">
-      <div class="card-title">
-        Palavra formada
-      </div>
-      <div class="word-display" id="wordDisplay">_</div>
-      <div class="word-hint">Mantenha a letra estável por ~1s para adicioná-la</div>
+      <div class="card-title">Frase formada</div>
+      <div class="frase" id="frase">_</div>
+      <div class="stab-wrap"><div class="stab-fill" id="stabFill"></div></div>
+      <div class="frase-hint">Segure a letra para adicioná-la</div>
       <div class="word-btns">
-        <button class="word-btn" id="btnBackspace" onclick="backspace()">⌫ Apagar</button>
-        <button class="word-btn" id="btnSpace"     onclick="addSpace()">␣ Espaço</button>
-        <button class="word-btn" id="btnClearWord" onclick="clearWord()">🗑 Limpar</button>
+        <button class="wbtn del" onclick="del()">⌫ Apagar</button>
+        <button class="wbtn spc" onclick="spc()">␣ Espaço</button>
+        <button class="wbtn clr" onclick="clr()">🗑 Limpar</button>
       </div>
     </div>
 
-    <!-- Top 5 probabilidades -->
+    <!-- Top 5 -->
     <div class="card">
-      <div class="card-title">Top 5 probabilidades</div>
-      <div id="top5"><span style="color:#475569;font-size:.82rem">Nenhuma previsão ainda</span></div>
+      <div class="card-title">Probabilidades em tempo real</div>
+      <div class="t5" id="top5"><span style="color:#475569;font-size:.8rem">Aguardando...</span></div>
     </div>
 
     <!-- Controles -->
     <div class="card">
       <div class="btn-row">
-        <button id="btnStart" onclick="startCam()">▶ Iniciar câmera</button>
-        <button id="btnStop"  onclick="stopCam()" disabled>⏹ Parar</button>
+        <button class="btn start" id="btnStart" onclick="startCam()">▶ Iniciar</button>
+        <button class="btn stop"  id="btnStop"  onclick="stopCam()" disabled>⏹ Parar</button>
       </div>
-      <div class="log" id="log">Clique em "Iniciar câmera" para começar.</div>
+      <div class="log" id="log">Clique em Iniciar para começar.</div>
     </div>
 
   </div>
@@ -123,43 +118,46 @@
 
 <script>
   const WS_URL = "ws://localhost:8000/ws";
-  const FPS    = 60; // ms entre frames (~16fps)
+  const FPS    = 33;  // ~30fps
 
-  // Estabilização: adiciona letra à palavra quando
-  // a mesma letra aparece por STABLE_FRAMES frames seguidos
-  const STABLE_FRAMES   = 20;
-  const COOLDOWN_FRAMES = 30; // frames de cooldown após adicionar
+  // ── Estabilização ──
+  // Letra precisa aparecer STABLE_N vezes seguidas para ser adicionada
+  const STABLE_N      = 10;   // ~330ms a 30fps
+  const COOLDOWN_N    = 15;   // ~500ms entre letras
+  const MIN_CONF      = 65;   // confiança mínima para considerar
 
   let ws, stream, timer;
-  let word           = "";
-  let stableCount    = 0;
-  let lastLetter     = "";
-  let cooldown       = 0;
+  let frase       = "";
+  let stableCount = 0;
+  let lastLetter  = "";
+  let cooldown    = 0;
 
-  const video = document.getElementById("video");
-  const badge = document.getElementById("badge");
-  const handFrame = document.getElementById("handFrame");
-  const letterBig = document.getElementById("letterBig");
-  const letterSub = document.getElementById("letterSub");
-  const confPill = document.getElementById("confPill");
-  const wordDisplay = document.getElementById("wordDisplay");
-  const top5 = document.getElementById("top5");
+  const video    = document.getElementById("video");
+  const badge    = document.getElementById("badge");
+  const handBox  = document.getElementById("handBox");
+  const liveLet  = document.getElementById("liveLetter");
+  const fraseEl  = document.getElementById("frase");
+  const stabFill = document.getElementById("stabFill");
+  const top5El   = document.getElementById("top5");
   const btnStart = document.getElementById("btnStart");
-  const btnStop = document.getElementById("btnStop");
-  const log = document.getElementById("log");
+  const btnStop  = document.getElementById("btnStop");
+  const logEl    = document.getElementById("log");
 
   const canvas = document.createElement("canvas");
   const ctx    = canvas.getContext("2d");
 
-  // ── Câmera e WebSocket ───────────────
+  // ── Câmera ──
   async function startCam() {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480, frameRate: 30 },
+        audio: false
+      });
       video.srcObject = stream;
       btnStart.disabled = true; btnStop.disabled = false;
-      setLog("Câmera iniciada. Conectando...");
+      log("Câmera iniciada. Conectando...");
       connectWS();
-    } catch(e) { setLog("❌ Erro na câmera: " + e.message); }
+    } catch(e) { log("❌ Câmera: " + e.message); }
   }
 
   function stopCam() {
@@ -168,107 +166,116 @@
     clearInterval(timer); timer=null;
     video.srcObject=null;
     btnStart.disabled=false; btnStop.disabled=true;
-    setBadge("disconnected","⬤ Desconectado");
-    setLog("Câmera parada.");
+    setBadge("off","⬤ Desconectado");
+    log("Parado.");
   }
 
+  // ── WebSocket ──
   function connectWS() {
     ws = new WebSocket(WS_URL);
-    ws.onopen    = () => { setBadge("connected","⬤ Conectado"); setLog("Posicione sua mão e faça uma letra do alfabeto manual."); startFrames(); };
+    ws.onopen    = () => { setBadge("on","⬤ Conectado"); log("Pronto! Posicione sua mão."); startFrames(); };
     ws.onmessage = e => handle(JSON.parse(e.data));
-    ws.onerror   = () => setLog("❌ Servidor offline. Rode: python backend/main.py");
-    ws.onclose   = () => { setBadge("disconnected","⬤ Desconectado"); clearInterval(timer); };
+    ws.onerror   = () => log("❌ Backend offline. Rode: python backend/main.py");
+    ws.onclose   = () => { setBadge("off","⬤ Desconectado"); clearInterval(timer); };
   }
 
+  // ── Envio de frames ──
   function startFrames() {
     timer = setInterval(() => {
       if (!ws || ws.readyState !== 1 || !stream) return;
-      canvas.width  = video.videoWidth  || 640;
-      canvas.height = video.videoHeight || 480;
+      // Resolução reduzida para menor latência
+      canvas.width  = 320;
+      canvas.height = 240;
       ctx.save(); ctx.scale(-1,1);
-      ctx.drawImage(video,-canvas.width,0,canvas.width,canvas.height);
+      ctx.drawImage(video, -320, 0, 320, 240);
       ctx.restore();
-      ws.send(JSON.stringify({type:"frame", image:canvas.toDataURL("image/jpeg",0.75)}));
+      ws.send(JSON.stringify({ type:"frame", image: canvas.toDataURL("image/jpeg", 0.6) }));
     }, FPS);
   }
 
-  // ── Processar mensagens ──────────────
+  // ── Processar mensagens ──
   function handle(msg) {
+
+    // Sem mão
     if (msg.type === "status") {
-      handFrame.classList.remove("active");
-      setBadge("connected","⬤ Conectado");
-      letterBig.textContent  = "—";
-      letterSub.textContent  = "Nenhuma mão detectada";
-      confPill.style.visibility = "hidden";
+      handBox.classList.remove("active");
+      setBadge("on","⬤ Conectado");
+      liveLet.textContent = "";
+      stabFill.style.width = "0%";
       stableCount = 0; lastLetter = "";
-      setLog("Posicione sua mão na câmera.");
+      log("Posicione sua mão na câmera.");
       return;
     }
 
-    if (msg.type === "prediction") {
-      handFrame.classList.add("active");
-      setBadge("detecting", `⬤ Detectando`);
-
-      const letter = msg.letter;
-      const conf   = msg.confidence;
-
-      // Atualiza display
-      letterBig.textContent = letter;
-      letterSub.textContent = `Letra detectada`;
-      confPill.style.visibility = "visible";
-      confPill.textContent  = `${conf}% confiança`;
-
-      // Top 5
-      if (msg.top5) {
-        top5.innerHTML = msg.top5.map(i=>`
-          <div class="t5-item">
-            <span class="t5-label">${i.letter}</span>
-            <div class="t5-bar-wrap"><div class="t5-bar-fill" style="width:${i.confidence}%"></div></div>
-            <span class="t5-pct">${i.confidence}%</span>
-          </div>`).join("");
-      }
-
-      // Lógica de estabilização para formar palavras
-      if (cooldown > 0) { cooldown--; return; }
-
-      if (letter === lastLetter && conf >= 60) {
-        stableCount++;
-        const pct = Math.min(stableCount / STABLE_FRAMES * 100, 100);
-        letterSub.textContent = `Segurando... ${Math.round(pct)}%`;
-        if (stableCount >= STABLE_FRAMES) {
-          addLetter(letter);
-          stableCount = 0;
-          cooldown    = COOLDOWN_FRAMES;
-        }
-      } else {
-        lastLetter  = letter;
-        stableCount = 1;
-      }
-
-      setLog(`Detectado: ${letter} (${conf}%)`);
+    // Detectando (confiança baixa) — mostra em tempo real mas não adiciona
+    if (msg.type === "detecting") {
+      handBox.classList.add("active");
+      setBadge("det","⬤ Detectando");
+      liveLet.textContent = msg.letter;
+      liveLet.style.opacity = "0.5";
+      renderTop5(msg.top5);
+      stableCount = 0; lastLetter = "";
+      stabFill.style.width = "0%";
+      return;
     }
 
-    if (msg.type === "error") setLog("❌ " + msg.message);
+    // Predição estável
+    if (msg.type === "prediction") {
+      handBox.classList.add("active");
+      setBadge("det","⬤ " + msg.letter);
+      liveLet.textContent = msg.letter;
+      liveLet.style.opacity = "1";
+      renderTop5(msg.top5);
+
+      if (cooldown > 0) { cooldown--; stabFill.style.width="0%"; return; }
+
+      // Estabilização
+      if (msg.letter === lastLetter && msg.confidence >= MIN_CONF) {
+        stableCount++;
+        stabFill.style.width = Math.min(stableCount / STABLE_N * 100, 100) + "%";
+        log(`"${msg.letter}" — ${msg.confidence}% — ${stableCount}/${STABLE_N}`);
+
+        if (stableCount >= STABLE_N) {
+          addLetra(msg.letter);
+          stableCount = 0;
+          cooldown    = COOLDOWN_N;
+          stabFill.style.width = "0%";
+        }
+      } else {
+        lastLetter  = msg.letter;
+        stableCount = 1;
+        stabFill.style.width = "0%";
+      }
+    }
+
+    if (msg.type === "error") log("❌ " + msg.message);
   }
 
-  // ── Palavra ──────────────────────────
-  function addLetter(l) {
-    word += l;
-    renderWord();
-    setLog(`✅ Letra "${l}" adicionada!`);
+  // ── Frase ──
+  function addLetra(l) {
+    frase += l;
+    renderFrase();
+    log(`✅ "${l}" adicionada!`);
+  }
+  function del() { frase = frase.slice(0,-1); renderFrase(); }
+  function spc() { frase += " "; renderFrase(); }
+  function clr() { frase = ""; renderFrase(); }
+  function renderFrase() { fraseEl.textContent = frase || "_"; }
+
+  // ── Top 5 ──
+  function renderTop5(data) {
+    if (!data) return;
+    top5El.innerHTML = data.map(i => `
+      <div class="t5-row">
+        <span class="t5-l">${i.letter}</span>
+        <div class="t5-bar"><div class="t5-fill" style="width:${i.confidence}%"></div></div>
+        <span class="t5-pct">${i.confidence}%</span>
+      </div>`).join("");
   }
 
-  function addSpace()  { word += " "; renderWord(); }
-  function backspace() { word = word.slice(0,-1); renderWord(); }
-  function clearWord() { word = ""; renderWord(); }
-
-  function renderWord() {
-    wordDisplay.textContent = word || "_";
-  }
-
-  // ── Helpers ──────────────────────────
-  function setBadge(type, text){ badge.className=`badge ${type}`; badge.textContent=text; }
-  function setLog(text){ log.textContent=text; }
+  // ── Helpers ──
+  function setBadge(cls, txt) { badge.className=`badge ${cls}`; badge.textContent=txt; }
+  function log(txt) { logEl.textContent=txt; }
 </script>
 </body>
 </html>
