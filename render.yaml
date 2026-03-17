@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────
+#  render.yaml — Configuração do Render
+#  Coloque este arquivo na raiz do projeto
+# ─────────────────────────────────────────
+
+services:
+  - type: web
+    name: libras-translator
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free          # mude para "starter" para produção
+    region: oregon      # ou frankfurt para menor latência no Brasil
+
+    # Variáveis de ambiente
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+    # Disco persistente para o modelo (importante!)
+    disk:
+      name: model-storage
+      mountPath: /app/model
+      sizeGB: 1
+
+    # Healthcheck
+    healthCheckPath: /health

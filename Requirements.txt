@@ -1,27 +1,22 @@
-# ─────────────────────────────────────────────────
+# ─────────────────────────────────────────
 #  Libras Translator — Dependências
-#  Instale com: pip install -r requirements.txt
-# ─────────────────────────────────────────────────
-
-# Core ML
-tensorflow>=2.13,<2.17
-numpy>=1.24,<2.0
-scikit-learn>=1.3
-joblib>=1.3
-
-# MediaPipe (detecção de mãos em tempo real)
-mediapipe>=0.10.13
-
-# Dados e visualização
-pandas>=2.0
-matplotlib>=3.7
-seaborn>=0.12
+# ─────────────────────────────────────────
 
 # Backend
-fastapi>=0.110
-uvicorn[standard]>=0.27
-websockets>=12.0
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+websockets==12.0
 
-# Utilitários
-requests>=2.31
-opencv-python>=4.8
+# ML
+scikit-learn==1.4.2
+joblib==1.4.0
+numpy==1.26.4
+
+# Visão computacional
+mediapipe==0.10.9
+opencv-python-headless==4.9.0.80
+
+# Dados / treino (não usados em produção, mas mantidos para consistência)
+pandas==2.2.2
+matplotlib==3.8.4
+seaborn==0.13.2

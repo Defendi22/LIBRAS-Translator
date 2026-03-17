@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  libras-translator:
+    build: .
+    container_name: libras-translator
+    ports:
+      - "8000:8000"
+    volumes:
+      # Monta model/ e data/ para não perder o modelo ao recriar o container
+      - ./model:/app/model
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
