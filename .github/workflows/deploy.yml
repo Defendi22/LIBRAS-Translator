@@ -7,9 +7,6 @@ on:
     branches: [main]
 
 jobs:
-  # ─────────────────────────────────────────
-  # 1. TESTES
-  # ─────────────────────────────────────────
   test:
     name: Testes
     runs-on: ubuntu-latest
@@ -22,18 +19,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-          cache: "pip"
 
       - name: Instalar dependências
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Verificar imports
-        run: python -c "import fastapi, uvicorn, mediapipe, sklearn, joblib, numpy, cv2; print('✅ Imports OK')"
+        run: python -c "import fastapi, uvicorn, sklearn, joblib, numpy; print('✅ Imports OK')"
 
-  # ─────────────────────────────────────────
-  # 2. DEPLOY NO RENDER
-  # Render faz o build direto do GitHub — sem Docker Hub
-  # ─────────────────────────────────────────
   deploy:
     name: Deploy no Render
     runs-on: ubuntu-latest
@@ -48,5 +42,4 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{}' \
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys"
-          echo "✅ Deploy iniciado no Render!"
-          echo "🔗 Acompanhe em: https://dashboard.render.com"
+          echo "✅ Deploy iniciado!"
