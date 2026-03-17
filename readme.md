@@ -18,7 +18,7 @@
 
 <br/>
 
-![demo](https://img.shields.io/badge/🚀_Demo_ao_vivo-Acessar-7C3AED?style=for-the-badge)
+[![demo](https://img.shields.io/badge/🚀_Demo_ao_vivo-Acessar-7C3AED?style=for-the-badge)](https://libras-translator.onrender.com)
 
 </div>
 
