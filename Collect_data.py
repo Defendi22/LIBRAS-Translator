@@ -28,7 +28,7 @@ import numpy as np
 
 # ── Config ───────────────────────────────
 LETRAS        = list("ABCDEFGHIKLMNOPQRSTUVWXY")  # 24 letras estáticas
-AMOSTRAS_POR_LETRA = 500
+AMOSTRAS_POR_LETRA = 1000
 OUTPUT_CSV    = "data/meus_dados.csv"
 
 os.makedirs("data", exist_ok=True)
