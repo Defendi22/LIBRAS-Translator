@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=32&pause=1000&color=7C3AED&center=true&vCenter=true&width=600&lines=🤟+Tradutor+de+Libras;Reconhecimento+em+Tempo+Real;MediaPipe+%2B+Machine+Learning" alt="Typing SVG" />
+# 🤟 Tradutor de Libras em Tempo Real
 
 <br/>
 
